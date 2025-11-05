@@ -70,7 +70,8 @@ class _NotificationHomeState extends State<NotificationHome> {
   }
 
   Future<void> _showTestNotification() async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    const AndroidNotificationDetails androidDetails =
+    AndroidNotificationDetails(
       'instant_channel',
       'Instant Notifications',
       channelDescription: 'This channel is for instant notifications',
@@ -102,12 +103,14 @@ class _NotificationHomeState extends State<NotificationHome> {
     if (tzTime.isBefore(tz.TZDateTime.now(tz.getLocation('Asia/Dhaka')))) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot schedule a notification in the past!')),
+        const SnackBar(
+            content: Text('Cannot schedule a notification in the past!')),
       );
       return;
     }
 
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    const AndroidNotificationDetails androidDetails =
+    AndroidNotificationDetails(
       'schedule_channel',
       'Scheduled Notifications',
       channelDescription: 'This channel is for scheduled notifications',
@@ -134,14 +137,16 @@ class _NotificationHomeState extends State<NotificationHome> {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
 
-    final delay = tzTime.difference(DateTime.now()) + const Duration(seconds: 10);
+    final delay =
+        tzTime.difference(DateTime.now()) + const Duration(seconds: 10);
     Future.delayed(delay, () async {
       await flutterLocalNotificationsPlugin.cancel(id);
     });
 
     if (!mounted) return;
     setState(() {
-      scheduledNotifications.add(ScheduledNotification(dateTime: dateTime, id: id));
+      scheduledNotifications
+          .add(ScheduledNotification(dateTime: dateTime, id: id));
     });
   }
 
@@ -197,66 +202,113 @@ class _NotificationHomeState extends State<NotificationHome> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Flutter Notification App'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            ElevatedButton.icon(
-              onPressed: _showTestNotification,
-              icon: const Icon(Icons.notifications_active),
-              label: const Text('Send Test Notification'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _pickDateTimeAndSchedule,
-              icon: const Icon(Icons.schedule),
-              label: const Text('Schedule Notification (Date & Time)'),
-            ),
-            const SizedBox(height: 20),
-            if (!_isNotificationsLoaded) const LinearProgressIndicator(),
-            if (_isNotificationsLoaded && scheduledNotifications.isNotEmpty)
-              Expanded(
-                child: ListView.builder(
-                  itemCount: scheduledNotifications.length,
-                  itemBuilder: (context, index) {
-                    final item = scheduledNotifications[index];
-                    return Dismissible(
-                      key: Key(item.id.toString()),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.redAccent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: const Icon(Icons.delete, color: Colors.white),
-                      ),
-                      onDismissed: (_) => _removeNotification(index),
-                      child: Card(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.blue,
+              Colors.black,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _showTestNotification,
+                      icon: const Icon(Icons.notifications_active),
+                      label: const Text('Send Test Notification'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.2),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 16, horizontal: 20),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        elevation: 4,
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        child: ListTile(
-                          leading: const Icon(Icons.notifications, color: Colors.blue),
-                          title: const Text(
-                            'This is a scheduled notification ⏰',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: Text(
-                            'Date & Time: ${DateFormat('hh:mm a, dd MMM yyyy').format(item.dateTime)}',
-                          ),
-                        ),
+                            borderRadius: BorderRadius.circular(30)),
+                        elevation: 5,
                       ),
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton.icon(
+                      onPressed: _pickDateTimeAndSchedule,
+                      icon: const Icon(Icons.schedule),
+                      label: const Text('Schedule Notification (Date & Time)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.2),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 16, horizontal: 20),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30)),
+                        elevation: 5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-          ],
+              const SizedBox(height: 20),
+              if (!_isNotificationsLoaded)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: LinearProgressIndicator(color: Colors.white),
+                ),
+              if (_isNotificationsLoaded && scheduledNotifications.isNotEmpty)
+                Flexible(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: scheduledNotifications.length,
+                    itemBuilder: (context, index) {
+                      final item = scheduledNotifications[index];
+                      return Dismissible(
+                        key: Key(item.id.toString()),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child:
+                          const Icon(Icons.delete, color: Colors.white),
+                        ),
+                        onDismissed: (_) => _removeNotification(index),
+                        child: Card(
+                          color: Colors.white.withOpacity(0.1),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          elevation: 4,
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          child: ListTile(
+                            leading: const Icon(Icons.notifications,
+                                color: Colors.blueAccent),
+                            title: const Text(
+                              'This is a scheduled notification ⏰',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white),
+                            ),
+                            subtitle: Text(
+                              'Date & Time: ${DateFormat('hh:mm a, dd MMM yyyy').format(item.dateTime)}',
+                              style: const TextStyle(color: Colors.white70),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
