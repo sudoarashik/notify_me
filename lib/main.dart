@@ -1,43 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
-import 'package:intl/intl.dart'; // ✅ Add this
-
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-FlutterLocalNotificationsPlugin();
+import 'package:firebase_core/firebase_core.dart';
+import 'login_page.dart';
+import 'register_page.dart';
+import 'notification_home.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  tz.initializeTimeZones();
-  tz.setLocalLocation(tz.getLocation('Asia/Dhaka'));
-
-  const AndroidInitializationSettings initializationSettingsAndroid =
-  AndroidInitializationSettings('@mipmap/ic_launcher');
-
-  const InitializationSettings initializationSettings =
-  InitializationSettings(android: initializationSettingsAndroid);
-
-  await flutterLocalNotificationsPlugin.initialize(
-    initializationSettings,
-    onDidReceiveNotificationResponse: (NotificationResponse response) async {
-      // Handle notification tap when the app is running
-    },
-  );
-
-  const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'schedule_channel',
-    'Scheduled Notifications',
-    description: 'This channel is for scheduled notifications',
-    importance: Importance.max,
-  );
-
-  final androidPlugin = flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-      AndroidFlutterLocalNotificationsPlugin>();
-  await androidPlugin?.createNotificationChannel(channel);
-
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 
@@ -48,7 +17,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Notification Demo',
+      title: 'Firebase & Notification App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: Colors.white,
@@ -71,237 +40,42 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const NotificationHome(),
+      home: const HomePage(),
     );
   }
 }
 
-class ScheduledNotification {
-  final DateTime dateTime;
-  final int id;
-
-  ScheduledNotification({required this.dateTime, required this.id});
-}
-
-class NotificationHome extends StatefulWidget {
-  const NotificationHome({super.key});
-
-  @override
-  State<NotificationHome> createState() => _NotificationHomeState();
-}
-
-class _NotificationHomeState extends State<NotificationHome> {
-  final List<ScheduledNotification> scheduledNotifications = [];
-  bool _isNotificationsLoaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPendingNotifications();
-  }
-
-  Future<void> _loadPendingNotifications() async {
-    final List<PendingNotificationRequest> pending =
-    await flutterLocalNotificationsPlugin.pendingNotificationRequests();
-
-    if (!mounted) return;
-
-    setState(() {
-      _isNotificationsLoaded = true;
-    });
-  }
-
-  Future<void> _showTestNotification() async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'instant_channel',
-      'Instant Notifications',
-      channelDescription: 'This channel is for instant notifications',
-      importance: Importance.max,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-      ticker: 'ticker',
-    );
-
-    const NotificationDetails platformDetails =
-    NotificationDetails(android: androidDetails);
-
-    await flutterLocalNotificationsPlugin.show(
-      0,
-      'Test Notification 🚀',
-      'This is a test notification ✅',
-      platformDetails,
-    );
-
-    Future.delayed(const Duration(seconds: 10), () async {
-      await flutterLocalNotificationsPlugin.cancel(0);
-    });
-  }
-
-  Future<void> _scheduleNotification(DateTime dateTime) async {
-    final tzTime = tz.TZDateTime.from(dateTime, tz.getLocation('Asia/Dhaka'));
-
-    if (tzTime.isBefore(tz.TZDateTime.now(tz.getLocation('Asia/Dhaka')))) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot schedule a notification in the past!')),
-      );
-      return;
-    }
-
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'schedule_channel',
-      'Scheduled Notifications',
-      channelDescription: 'This channel is for scheduled notifications',
-      importance: Importance.max,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-      ticker: 'ticker',
-    );
-
-    const NotificationDetails platformDetails =
-    NotificationDetails(android: androidDetails);
-
-    final int id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      id,
-      'Scheduled Notification 🕒',
-      'This is a scheduled notification ⏰',
-      tzTime,
-      platformDetails,
-      uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-    );
-
-    final delay = tzTime.difference(DateTime.now()) + const Duration(seconds: 10);
-    Future.delayed(delay, () async {
-      await flutterLocalNotificationsPlugin.cancel(id);
-    });
-
-    if (!mounted) return;
-
-    setState(() {
-      scheduledNotifications.add(ScheduledNotification(dateTime: dateTime, id: id));
-    });
-  }
-
-  Future<void> _pickDateTimeAndSchedule() async {
-    final pickedDate = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2024),
-      lastDate: DateTime(2100),
-    );
-    if (pickedDate == null) return;
-
-    final pickedTime = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-    if (pickedTime == null) return;
-
-    final scheduledDateTime = DateTime(
-      pickedDate.year,
-      pickedDate.month,
-      pickedDate.day,
-      pickedTime.hour,
-      pickedTime.minute,
-    );
-
-    await _scheduleNotification(scheduledDateTime);
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-            'Notification scheduled at ${DateFormat('hh:mm a, dd MMM yyyy').format(scheduledDateTime)}'),
-      ),
-    );
-  }
-
-  Future<void> _removeNotification(int index) async {
-    final notification = scheduledNotifications[index];
-    await flutterLocalNotificationsPlugin.cancel(notification.id);
-
-    if (!mounted) return;
-
-    setState(() {
-      scheduledNotifications.removeAt(index);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Notification removed ❌')),
-    );
-  }
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Flutter Notification App'),
-      ),
+      appBar: AppBar(title: const Text('Welcome Page'), centerTitle: true,),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            ElevatedButton.icon(
-              onPressed: _showTestNotification,
-              icon: const Icon(Icons.notifications_active),
-              label: const Text('Send Test Notification'),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                );
+              },
+              child: Center(child: const Text('Login')),
             ),
             const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _pickDateTimeAndSchedule,
-              icon: const Icon(Icons.schedule),
-              label: const Text('Schedule Notification (Date & Time)'),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const RegisterPage()),
+                );
+              },
+              child: Center(child: const Text('Register')),
             ),
-            const SizedBox(height: 20),
-            if (!_isNotificationsLoaded) const LinearProgressIndicator(),
-            if (_isNotificationsLoaded && scheduledNotifications.isNotEmpty)
-              Expanded(
-                child: ListView.builder(
-                  itemCount: scheduledNotifications.length,
-                  itemBuilder: (context, index) {
-                    final item = scheduledNotifications[index];
-                    return Dismissible(
-                      key: Key(item.id.toString()),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.redAccent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: const Icon(Icons.delete, color: Colors.white),
-                      ),
-                      onDismissed: (_) => _removeNotification(index),
-                      child: Card(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        elevation: 4,
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        child: ListTile(
-                          leading: const Icon(Icons.notifications,
-                              color: Colors.blue),
-                          title: const Text(
-                            'This is a scheduled notification ⏰',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: Text(
-                            // ✅ AM/PM formatted time
-                            'Date & Time: ${DateFormat('hh:mm a, dd MMM yyyy').format(item.dateTime)}',
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
           ],
         ),
       ),
