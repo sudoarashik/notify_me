@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:intl/intl.dart';
+import 'login_page.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
@@ -25,12 +28,95 @@ class _NotificationHomeState extends State<NotificationHome> {
   final List<ScheduledNotification> scheduledNotifications = [];
   bool _isNotificationsLoaded = false;
 
+  // ✅ Banner Ad variables
+  late BannerAd _bannerAd;
+  bool _isBannerAdReady = false;
+
+  // ✅ Interstitial Ad variables
+  InterstitialAd? _interstitialAd;
+  Timer? _interstitialTimer;
+
   @override
   void initState() {
     super.initState();
     _initNotifications();
+    _loadBannerAd();
+    _loadInterstitialAd();
+
+    // প্রতি 10 সেকেন্ডে ad দেখানোর টাইমার
+    _interstitialTimer = Timer.periodic(const Duration(seconds: 180), (timer) {
+      _showInterstitialAd();
+    });
   }
 
+  // 🔹 Banner Load
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // ✅ test Banner ID
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          setState(() {
+            _isBannerAdReady = true;
+          });
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          debugPrint('BannerAd failed to load: $error');
+        },
+      ),
+    );
+    _bannerAd.load();
+  }
+
+  // 🔹 Interstitial Load
+  void _loadInterstitialAd() {
+    InterstitialAd.load(
+      adUnitId: 'ca-app-pub-3940256099942544/1033173712', // ✅ test interstitial ID
+      request: const AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) {
+          _interstitialAd = ad;
+        },
+        onAdFailedToLoad: (error) {
+          _interstitialAd = null;
+          debugPrint('InterstitialAd failed: $error');
+        },
+      ),
+    );
+  }
+
+  // 🔹 Interstitial Show
+  void _showInterstitialAd() {
+    if (_interstitialAd != null) {
+      _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+        onAdDismissedFullScreenContent: (ad) {
+          ad.dispose();
+          _loadInterstitialAd(); // ad close হলে আবার load
+        },
+        onAdFailedToShowFullScreenContent: (ad, error) {
+          ad.dispose();
+          _interstitialAd = null;
+        },
+      );
+
+      _interstitialAd!.show();
+      _interstitialAd = null;
+    } else {
+      _loadInterstitialAd(); // ready না থাকলে আবার load
+    }
+  }
+
+  @override
+  void dispose() {
+    _bannerAd.dispose();
+    _interstitialAd?.dispose();
+    _interstitialTimer?.cancel();
+    super.dispose();
+  }
+
+  // 🔹 Notification Setup
   Future<void> _initNotifications() async {
     tz.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('Asia/Dhaka'));
@@ -43,7 +129,8 @@ class _NotificationHomeState extends State<NotificationHome> {
 
     await flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) async {},
+      onDidReceiveNotificationResponse:
+          (NotificationResponse response) async {},
     );
 
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
@@ -104,7 +191,8 @@ class _NotificationHomeState extends State<NotificationHome> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Cannot schedule a notification in the past!')),
+          content: Text('Cannot schedule a notification in the past!'),
+        ),
       );
       return;
     }
@@ -199,117 +287,180 @@ class _NotificationHomeState extends State<NotificationHome> {
     );
   }
 
+  void _logout() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginPage()),
+    );
+  }
+
+  // 🔹 UI
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.blue,
-              Colors.black,
-            ],
-          ),
+      appBar: AppBar(
+        title: const Text(
+          'Notify Me',
+          style: TextStyle(color: Colors.black87),
         ),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
+        backgroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.black87),
+        actions: [
+          IconButton(
+            onPressed: _logout,
+            icon: const Icon(Icons.logout),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          if (_isBannerAdReady)
+            Container(
+              width: _bannerAd.size.width.toDouble(),
+              height: _bannerAd.size.height.toDouble(),
+              alignment: Alignment.center,
+              child: AdWidget(ad: _bannerAd),
+            ),
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.white, Colors.grey.shade200],
+                ),
+              ),
+              child: SafeArea(
                 child: Column(
                   children: [
-                    ElevatedButton.icon(
-                      onPressed: _showTestNotification,
-                      icon: const Icon(Icons.notifications_active),
-                      label: const Text('Send Test Notification'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 16, horizontal: 20),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30)),
-                        elevation: 5,
+                    const SizedBox(height: 30),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Card(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 5,
+                              child: InkWell(
+                                onTap: _showTestNotification,
+                                child: Container(
+                                  height: 100,
+                                  alignment: Alignment.center,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      Icon(Icons.notifications_active, size: 32),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Test Notification',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Card(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 5,
+                              child: InkWell(
+                                onTap: _pickDateTimeAndSchedule,
+                                child: Container(
+                                  height: 100,
+                                  alignment: Alignment.center,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      Icon(Icons.schedule, size: 32),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Schedule Notification',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 20),
-                    ElevatedButton.icon(
-                      onPressed: _pickDateTimeAndSchedule,
-                      icon: const Icon(Icons.schedule),
-                      label: const Text('Schedule Notification (Date & Time)'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 16, horizontal: 20),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30)),
-                        elevation: 5,
+                    if (!_isNotificationsLoaded)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: LinearProgressIndicator(color: Colors.black87),
                       ),
-                    ),
+                    if (_isNotificationsLoaded &&
+                        scheduledNotifications.isNotEmpty)
+                      Flexible(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 20),
+                          itemCount: scheduledNotifications.length,
+                          itemBuilder: (context, index) {
+                            final item = scheduledNotifications[index];
+                            return Dismissible(
+                              key: Key(item.id.toString()),
+                              direction: DismissDirection.endToStart,
+                              background: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                alignment: Alignment.centerRight,
+                                padding:
+                                const EdgeInsets.symmetric(horizontal: 20),
+                                child: const Icon(Icons.delete,
+                                    color: Colors.white),
+                              ),
+                              onDismissed: (_) => _removeNotification(index),
+                              child: Card(
+                                color: Colors.white.withOpacity(0.1),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                                elevation: 4,
+                                margin:
+                                const EdgeInsets.symmetric(vertical: 6),
+                                child: ListTile(
+                                  leading: const Icon(Icons.notifications,
+                                      color: Colors.black87),
+                                  title: const Text(
+                                    'This is a scheduled notification ⏰',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87),
+                                  ),
+                                  subtitle: Text(
+                                    'Date & Time: ${DateFormat('hh:mm a, dd MMM yyyy').format(item.dateTime)}',
+                                    style: const TextStyle(color: Colors.black54),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-              if (!_isNotificationsLoaded)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: LinearProgressIndicator(color: Colors.white),
-                ),
-              if (_isNotificationsLoaded && scheduledNotifications.isNotEmpty)
-                Flexible(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: scheduledNotifications.length,
-                    itemBuilder: (context, index) {
-                      final item = scheduledNotifications[index];
-                      return Dismissible(
-                        key: Key(item.id.toString()),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.redAccent,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child:
-                          const Icon(Icons.delete, color: Colors.white),
-                        ),
-                        onDismissed: (_) => _removeNotification(index),
-                        child: Card(
-                          color: Colors.white.withOpacity(0.1),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          elevation: 4,
-                          margin: const EdgeInsets.symmetric(vertical: 6),
-                          child: ListTile(
-                            leading: const Icon(Icons.notifications,
-                                color: Colors.blueAccent),
-                            title: const Text(
-                              'This is a scheduled notification ⏰',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white),
-                            ),
-                            subtitle: Text(
-                              'Date & Time: ${DateFormat('hh:mm a, dd MMM yyyy').format(item.dateTime)}',
-                              style: const TextStyle(color: Colors.white70),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

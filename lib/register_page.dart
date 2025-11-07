@@ -40,13 +40,13 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.blue,
-              Colors.black,
+              Colors.white,
+              Colors.grey.shade200,
             ],
           ),
         ),
@@ -59,52 +59,57 @@ class _RegisterPageState extends State<RegisterPage> {
                 const Text(
                   'Register',
                   style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold),
+                    color: Colors.black87,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 40),
                 TextField(
                   controller: emailController,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.black87),
                   decoration: InputDecoration(
                     labelText: 'Email',
-                    labelStyle: const TextStyle(color: Colors.white70),
+                    labelStyle: const TextStyle(color: Colors.black54),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.white70),
+                      borderSide: const BorderSide(color: Colors.black26),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.white),
+                      borderSide: const BorderSide(color: Colors.black87),
                     ),
+                    fillColor: Colors.white,
+                    filled: true,
                   ),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: passwordController,
                   obscureText: true,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.black87),
                   decoration: InputDecoration(
                     labelText: 'Password',
-                    labelStyle: const TextStyle(color: Colors.white70),
+                    labelStyle: const TextStyle(color: Colors.black54),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.white70),
+                      borderSide: const BorderSide(color: Colors.black26),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.white),
+                      borderSide: const BorderSide(color: Colors.black87),
                     ),
+                    fillColor: Colors.white,
+                    filled: true,
                   ),
                 ),
                 const SizedBox(height: 30),
                 loading
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const CircularProgressIndicator(color: Colors.black87)
                     : ElevatedButton(
                   onPressed: registerUser,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.2),
+                    backgroundColor: Colors.black87,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                         vertical: 16, horizontal: 50),
@@ -116,6 +121,22 @@ class _RegisterPageState extends State<RegisterPage> {
                     elevation: 5,
                   ),
                   child: const Text('Register'),
+                ),
+                const SizedBox(height: 20),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginPage()),
+                    );
+                  },
+                  child: const Text(
+                    "Already have an account? Login",
+                    style: TextStyle(
+                      color: Colors.black54,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
                 ),
               ],
             ),
