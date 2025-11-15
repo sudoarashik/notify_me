@@ -4,7 +4,9 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_page.dart';
 import 'notification_home.dart';
+import 'notification_weather.dart';
 import 'splash_screen.dart';
+import 'weather_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,7 +28,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Notify Me',
-      home: isLoggedIn ? const NotificationHome() : const SplashScreen(),
+      home: isLoggedIn ? const NotificationWeatherHome() : const SplashScreen(),
     );
   }
 }

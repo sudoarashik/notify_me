@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'register_page.dart';
-import 'notification_home.dart';
+import 'notification_weather.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -32,7 +32,7 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const NotificationHome()),
+        MaterialPageRoute(builder: (_) =>  NotificationWeatherHome()),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
