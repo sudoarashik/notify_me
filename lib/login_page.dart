@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'register_page.dart';
 import 'notification_home.dart';
 
@@ -23,6 +24,11 @@ class _LoginPageState extends State<LoginPage> {
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
+
+      // ✅ SharedPreferences এ লগইন স্ট্যাটাস সেভ করা
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', true);
+
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -41,89 +47,91 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              Colors.white,
-              Colors.grey.shade200,
+              Color(0xFF1B1035),
+              Color(0xFF2E1747),
+              Color(0xFF000000),
             ],
           ),
         ),
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Login',
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Icon(
+                  Icons.auto_awesome,
+                  size: 80,
+                  color: Colors.white.withOpacity(0.9),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 50),
                 TextField(
                   controller: emailController,
-                  style: const TextStyle(color: Colors.black87),
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    labelText: 'Email',
-                    labelStyle: const TextStyle(color: Colors.black54),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.black26),
+                    prefixIcon: const Icon(Icons.person, color: Colors.white70),
+                    hintText: 'Username',
+                    hintStyle: const TextStyle(color: Colors.white70),
+                    enabledBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white54),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.black87),
+                    focusedBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
                     ),
-                    fillColor: Colors.white,
-                    filled: true,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 25),
                 TextField(
                   controller: passwordController,
                   obscureText: true,
-                  style: const TextStyle(color: Colors.black87),
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    labelText: 'Password',
-                    labelStyle: const TextStyle(color: Colors.black54),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.black26),
+                    prefixIcon: const Icon(Icons.lock, color: Colors.white70),
+                    hintText: 'Password',
+                    hintStyle: const TextStyle(color: Colors.white70),
+                    enabledBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white54),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.black87),
+                    focusedBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
                     ),
-                    fillColor: Colors.white,
-                    filled: true,
                   ),
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 40),
                 loading
-                    ? const CircularProgressIndicator(color: Colors.black87)
+                    ? const CircularProgressIndicator(color: Colors.white)
                     : ElevatedButton(
                   onPressed: loginUser,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black87,
-                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black87,
                     padding: const EdgeInsets.symmetric(
-                        vertical: 16, horizontal: 50),
-                    textStyle: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 18),
+                        vertical: 14, horizontal: 80),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
-                    elevation: 5,
+                    elevation: 10,
                   ),
-                  child: const Text('Login'),
+                  child: const Text(
+                    'SIGN IN',
+                    style: TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
                 const SizedBox(height: 20),
+                TextButton(
+                  onPressed: () {},
+                  child: const Text(
+                    'Forgot your password?',
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                ),
+                const SizedBox(height: 40),
                 GestureDetector(
                   onTap: () {
                     Navigator.pushReplacement(
@@ -134,7 +142,8 @@ class _LoginPageState extends State<LoginPage> {
                   child: const Text(
                     "Don't have any account? Register",
                     style: TextStyle(
-                      color: Colors.black54,
+                      color: Colors.white70,
+                      fontSize: 15,
                       decoration: TextDecoration.underline,
                     ),
                   ),

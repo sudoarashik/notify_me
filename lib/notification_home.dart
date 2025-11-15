@@ -5,6 +5,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_page.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -43,7 +44,7 @@ class _NotificationHomeState extends State<NotificationHome> {
     _loadBannerAd();
     _loadInterstitialAd();
 
-    // প্রতি 10 সেকেন্ডে ad দেখানোর টাইমার
+    // Interstitial ad every 3 minutes
     _interstitialTimer = Timer.periodic(const Duration(seconds: 180), (timer) {
       _showInterstitialAd();
     });
@@ -52,18 +53,14 @@ class _NotificationHomeState extends State<NotificationHome> {
   // 🔹 Banner Load
   void _loadBannerAd() {
     _bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // ✅ test Banner ID
+      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // test id
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(
-        onAdLoaded: (_) {
-          setState(() {
-            _isBannerAdReady = true;
-          });
-        },
+        onAdLoaded: (_) => setState(() => _isBannerAdReady = true),
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
-          debugPrint('BannerAd failed to load: $error');
+          debugPrint('❌ BannerAd failed: $error');
         },
       ),
     );
@@ -73,15 +70,13 @@ class _NotificationHomeState extends State<NotificationHome> {
   // 🔹 Interstitial Load
   void _loadInterstitialAd() {
     InterstitialAd.load(
-      adUnitId: 'ca-app-pub-3940256099942544/1033173712', // ✅ test interstitial ID
+      adUnitId: 'ca-app-pub-3940256099942544/1033173712', // test id
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
-        onAdLoaded: (ad) {
-          _interstitialAd = ad;
-        },
+        onAdLoaded: (ad) => _interstitialAd = ad,
         onAdFailedToLoad: (error) {
           _interstitialAd = null;
-          debugPrint('InterstitialAd failed: $error');
+          debugPrint('❌ InterstitialAd failed: $error');
         },
       ),
     );
@@ -93,18 +88,13 @@ class _NotificationHomeState extends State<NotificationHome> {
       _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
           ad.dispose();
-          _loadInterstitialAd(); // ad close হলে আবার load
-        },
-        onAdFailedToShowFullScreenContent: (ad, error) {
-          ad.dispose();
-          _interstitialAd = null;
+          _loadInterstitialAd();
         },
       );
-
       _interstitialAd!.show();
       _interstitialAd = null;
     } else {
-      _loadInterstitialAd(); // ready না থাকলে আবার load
+      _loadInterstitialAd();
     }
   }
 
@@ -127,11 +117,7 @@ class _NotificationHomeState extends State<NotificationHome> {
     const InitializationSettings initializationSettings =
     InitializationSettings(android: initializationSettingsAndroid);
 
-    await flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse:
-          (NotificationResponse response) async {},
-    );
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
       'schedule_channel',
@@ -151,26 +137,20 @@ class _NotificationHomeState extends State<NotificationHome> {
   Future<void> _loadPendingNotifications() async {
     await flutterLocalNotificationsPlugin.pendingNotificationRequests();
     if (!mounted) return;
-    setState(() {
-      _isNotificationsLoaded = true;
-    });
+    setState(() => _isNotificationsLoaded = true);
   }
 
   Future<void> _showTestNotification() async {
-    const AndroidNotificationDetails androidDetails =
-    AndroidNotificationDetails(
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'instant_channel',
       'Instant Notifications',
       channelDescription: 'This channel is for instant notifications',
       importance: Importance.max,
       priority: Priority.high,
       playSound: true,
-      enableVibration: true,
-      ticker: 'ticker',
     );
 
-    const NotificationDetails platformDetails =
-    NotificationDetails(android: androidDetails);
+    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
 
     await flutterLocalNotificationsPlugin.show(
       0,
@@ -178,40 +158,26 @@ class _NotificationHomeState extends State<NotificationHome> {
       'This is a test notification ✅',
       platformDetails,
     );
-
-    Future.delayed(const Duration(seconds: 10), () async {
-      await flutterLocalNotificationsPlugin.cancel(0);
-    });
   }
 
   Future<void> _scheduleNotification(DateTime dateTime) async {
     final tzTime = tz.TZDateTime.from(dateTime, tz.getLocation('Asia/Dhaka'));
-
     if (tzTime.isBefore(tz.TZDateTime.now(tz.getLocation('Asia/Dhaka')))) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cannot schedule a notification in the past!'),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Cannot schedule a notification in the past!'),
+      ));
       return;
     }
 
-    const AndroidNotificationDetails androidDetails =
-    AndroidNotificationDetails(
+    const androidDetails = AndroidNotificationDetails(
       'schedule_channel',
       'Scheduled Notifications',
       channelDescription: 'This channel is for scheduled notifications',
       importance: Importance.max,
       priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-      ticker: 'ticker',
     );
 
-    const NotificationDetails platformDetails =
-    NotificationDetails(android: androidDetails);
-
+    const platformDetails = NotificationDetails(android: androidDetails);
     final int id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
     await flutterLocalNotificationsPlugin.zonedSchedule(
@@ -220,21 +186,13 @@ class _NotificationHomeState extends State<NotificationHome> {
       'This is a scheduled notification ⏰',
       tzTime,
       platformDetails,
-      uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
 
-    final delay =
-        tzTime.difference(DateTime.now()) + const Duration(seconds: 10);
-    Future.delayed(delay, () async {
-      await flutterLocalNotificationsPlugin.cancel(id);
-    });
-
     if (!mounted) return;
     setState(() {
-      scheduledNotifications
-          .add(ScheduledNotification(dateTime: dateTime, id: id));
+      scheduledNotifications.add(ScheduledNotification(dateTime: dateTime, id: id));
     });
   }
 
@@ -247,10 +205,7 @@ class _NotificationHomeState extends State<NotificationHome> {
     );
     if (pickedDate == null) return;
 
-    final pickedTime = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
+    final pickedTime = await showTimePicker(context: context, initialTime: TimeOfDay.now());
     if (pickedTime == null) return;
 
     final scheduledDateTime = DateTime(
@@ -264,203 +219,191 @@ class _NotificationHomeState extends State<NotificationHome> {
     await _scheduleNotification(scheduledDateTime);
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Notification scheduled at ${DateFormat('hh:mm a, dd MMM yyyy').format(scheduledDateTime)}',
-        ),
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+        'Notification scheduled at ${DateFormat('hh:mm a, dd MMM yyyy').format(scheduledDateTime)}',
       ),
-    );
+    ));
   }
 
   Future<void> _removeNotification(int index) async {
     final notification = scheduledNotifications[index];
     await flutterLocalNotificationsPlugin.cancel(notification.id);
-
     if (!mounted) return;
-    setState(() {
-      scheduledNotifications.removeAt(index);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Notification removed ❌')),
-    );
+    setState(() => scheduledNotifications.removeAt(index));
   }
 
-  void _logout() {
+  // 🔹 Logout function (SharedPreferences)
+  void _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', false);
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const LoginPage()),
     );
   }
 
-  // 🔹 UI
+  // 🔹 UI (Dark Galaxy Theme)
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0D071F),
       appBar: AppBar(
+        backgroundColor: const Color(0xFF1B1035),
+        elevation: 6,
+        centerTitle: true,
         title: const Text(
           'Notify Me',
-          style: TextStyle(color: Colors.black87),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
         ),
-        backgroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.black87),
         actions: [
           IconButton(
             onPressed: _logout,
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, color: Colors.white70),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          if (_isBannerAdReady)
-            Container(
-              width: _bannerAd.size.width.toDouble(),
-              height: _bannerAd.size.height.toDouble(),
-              alignment: Alignment.center,
-              child: AdWidget(ad: _bannerAd),
-            ),
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Colors.white, Colors.grey.shade200],
-                ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF1B1035),
+              Color(0xFF2E1747),
+              Color(0xFF000000),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Column(
+          children: [
+            if (_isBannerAdReady)
+              Container(
+                alignment: Alignment.center,
+                width: _bannerAd.size.width.toDouble(),
+                height: _bannerAd.size.height.toDouble(),
+                child: AdWidget(ad: _bannerAd),
               ),
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 30),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Card(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 5,
-                              child: InkWell(
-                                onTap: _showTestNotification,
-                                child: Container(
-                                  height: 100,
-                                  alignment: Alignment.center,
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: const [
-                                      Icon(Icons.notifications_active, size: 32),
-                                      SizedBox(height: 8),
-                                      Text(
-                                        'Test Notification',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Card(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 5,
-                              child: InkWell(
-                                onTap: _pickDateTimeAndSchedule,
-                                child: Container(
-                                  height: 100,
-                                  alignment: Alignment.center,
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: const [
-                                      Icon(Icons.schedule, size: 32),
-                                      SizedBox(height: 8),
-                                      Text(
-                                        'Schedule Notification',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _actionCard(
+                      icon: Icons.notifications_active_rounded,
+                      text: 'Test Notification',
+                      onTap: _showTestNotification,
                     ),
-                    const SizedBox(height: 20),
-                    if (!_isNotificationsLoaded)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: LinearProgressIndicator(color: Colors.black87),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _actionCard(
+                      icon: Icons.schedule_rounded,
+                      text: 'Schedule Notification',
+                      onTap: _pickDateTimeAndSchedule,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: _isNotificationsLoaded
+                  ? (scheduledNotifications.isEmpty
+                  ? const Center(
+                child: Text(
+                  'No notifications scheduled yet 🌙',
+                  style: TextStyle(color: Colors.white70),
+                ),
+              )
+                  : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: scheduledNotifications.length,
+                itemBuilder: (context, index) {
+                  final item = scheduledNotifications[index];
+                  return Dismissible(
+                    key: Key(item.id.toString()),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    if (_isNotificationsLoaded &&
-                        scheduledNotifications.isNotEmpty)
-                      Flexible(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 20),
-                          itemCount: scheduledNotifications.length,
-                          itemBuilder: (context, index) {
-                            final item = scheduledNotifications[index];
-                            return Dismissible(
-                              key: Key(item.id.toString()),
-                              direction: DismissDirection.endToStart,
-                              background: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.redAccent,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                alignment: Alignment.centerRight,
-                                padding:
-                                const EdgeInsets.symmetric(horizontal: 20),
-                                child: const Icon(Icons.delete,
-                                    color: Colors.white),
-                              ),
-                              onDismissed: (_) => _removeNotification(index),
-                              child: Card(
-                                color: Colors.white.withOpacity(0.1),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                                elevation: 4,
-                                margin:
-                                const EdgeInsets.symmetric(vertical: 6),
-                                child: ListTile(
-                                  leading: const Icon(Icons.notifications,
-                                      color: Colors.black87),
-                                  title: const Text(
-                                    'This is a scheduled notification ⏰',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black87),
-                                  ),
-                                  subtitle: Text(
-                                    'Date & Time: ${DateFormat('hh:mm a, dd MMM yyyy').format(item.dateTime)}',
-                                    style: const TextStyle(color: Colors.black54),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
+                      child: const Icon(Icons.delete, color: Colors.white),
+                    ),
+                    onDismissed: (_) => _removeNotification(index),
+                    child: Card(
+                      color: Colors.white.withOpacity(0.08),
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        leading: const Icon(Icons.notifications, color: Colors.white70),
+                        title: const Text(
+                          'Scheduled Notification ⏰',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          DateFormat('hh:mm a, dd MMM yyyy').format(item.dateTime),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                          ),
                         ),
                       ),
-                  ],
-                ),
-              ),
+                    ),
+                  );
+                },
+              ))
+                  : const Center(
+                  child: CircularProgressIndicator(color: Colors.white70)),
             ),
-          ),
-        ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _actionCard({
+    required IconData icon,
+    required String text,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        height: 100,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 32),
+            const SizedBox(height: 10),
+            Text(
+              text,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
